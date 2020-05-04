@@ -1,0 +1,56 @@
+from pynput.keyboard import Listener
+from synthesizer import Synthesizer, Waveform
+import pygame
+
+synthesizer = Synthesizer(osc1_waveform=Waveform.sine, osc1_volume=1.0, use_osc2=False)
+pygame.mixer.init(44100,-16,1,2048)
+frequencies = [130.8, 138.6, 146.8, 155.6, 164.8, 174.6, 185.0, 196.0, 207.7, 220.0, 233.1, 246.9, 261.6, 277.2, 293.7, 311.1, 329.6, 349.2, 370.0, 392.0, 415.2, 440.0, 466.2, 493.9, 523.3, 554.4]
+soundlist = [0]*26
+overtonelist = [0]*26
+overtonelistoflists = [overtonelist]*4
+keys = ["'q'", "'w'", "'e'", "'r'", "'t'", "'y'", "'u'", "'i'", "'o'", "'p'", "'a'", "'s'", "'d'", "'f'", "'g'", "'h'", "'j'", "'k'", "'l'", "'z'", "'x'", "'c'", "'v'", "'b'", "'n'", "'m'"]
+inuse = [False]*len(keys)
+sustain = False
+
+for i in range(len(frequencies)):
+    wav = synthesizer.generate_constant_wave(frequencies[i], 10.0)
+    soundlist[i] = pygame.sndarray.make_sound(((2**(15)) * wav/wav.max()).astype('int16'))
+for j in range (len(overtonelistoflists)):
+    for i in range(len(frequencies))  :  
+        overtonej = synthesizer.generate_constant_wave((j+2)*frequencies[i], 10.0)
+        overtonelistoflists[j][i]=pygame.sndarray.make_sound(((2**(15))/(j+2) * overtonej/overtonej.max()).astype('int16'))
+
+def soundon(key): 
+    for j in range(len(overtonelistoflists)):
+        overtonelistoflists[j][keys.index(str(key))].play(fade_ms=100)
+    soundlist[keys.index(str(key))].play(fade_ms=100)
+      
+def soundoff(key): 
+    for j in range(len(overtonelistoflists)):
+        overtonelistoflists[j][keys.index(str(key))].fadeout(100)
+    soundlist[keys.index(str(key))].fadeout(100)
+    
+def on_press(key):
+    global sustain
+    if (str(key) == "Key.space"):
+        sustain = True
+    elif(inuse[keys.index(str(key))]==False):
+        inuse[keys.index(str(key))] = True
+        soundon(key) 
+    
+def on_release(key): 
+    global sustain
+    if (str(key) == "Key.space"):
+        sustain = False
+        for key in keys:
+            soundoff(key)
+    elif sustain == True:
+        print()
+    else:
+        soundoff(key)
+        inuse[keys.index(str(key))] = False
+    
+with Listener(
+        on_press=on_press,
+        on_release=on_release) as listener:
+    listener.join()
