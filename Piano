@@ -1,56 +1,62 @@
-from pynput.keyboard import Listener
+from pynput.keyboard import Listener #import statements
 from synthesizer import Synthesizer, Waveform
 import pygame
 
+#initialize synthesizer and mixer
 synthesizer = Synthesizer(osc1_waveform=Waveform.sine, osc1_volume=1.0, use_osc2=False)
 pygame.mixer.init(44100,-16,1,2048)
+#each value of frequencies is the same frequency as a piano key from low C to high D
 frequencies = [130.8, 138.6, 146.8, 155.6, 164.8, 174.6, 185.0, 196.0, 207.7, 220.0, 233.1, 246.9, 261.6, 277.2, 293.7, 311.1, 329.6, 349.2, 370.0, 392.0, 415.2, 440.0, 466.2, 493.9, 523.3, 554.4]
+
+#initialize "empty" lists
 soundlist = [0]*26
 overtonelist = [0]*26
 overtonelistoflists = [overtonelist]*4
+#order of keys from lowest tone to highest tone
 keys = ["'q'", "'w'", "'e'", "'r'", "'t'", "'y'", "'u'", "'i'", "'o'", "'p'", "'a'", "'s'", "'d'", "'f'", "'g'", "'h'", "'j'", "'k'", "'l'", "'z'", "'x'", "'c'", "'v'", "'b'", "'n'", "'m'"]
+#final initializations
 inuse = [False]*len(keys)
 sustain = False
 
-for i in range(len(frequencies)):
-    wav = synthesizer.generate_constant_wave(frequencies[i], 10.0)
-    soundlist[i] = pygame.sndarray.make_sound(((2**(15)) * wav/wav.max()).astype('int16'))
+for i in range(len(frequencies)):#for every frequency
+    wav = synthesizer.generate_constant_wave(frequencies[i], 10.0) #generate a constant wave out of it that lasts 10 seconds
+    soundlist[i] = pygame.sndarray.make_sound(((2**(15)) * wav/wav.max()).astype('int16')) #increase the volume 2^15 fold and turn into a 16-bit integer then into a sound then add to soundlist
 for j in range (len(overtonelistoflists)):
     for i in range(len(frequencies))  :  
-        overtonej = synthesizer.generate_constant_wave((j+2)*frequencies[i], 10.0)
-        overtonelistoflists[j][i]=pygame.sndarray.make_sound(((2**(15))/(j+2) * overtonej/overtonej.max()).astype('int16'))
+        overtonej = synthesizer.generate_constant_wave((j+2)*frequencies[i], 10.0) #for j overtones increase the frequency by a factor of j+2
+        overtonelistoflists[j][i]=pygame.sndarray.make_sound(((2**(15))/(j+2) * overtonej/overtonej.max()).astype('int16')) #divide the volume by j+2 and convert to a sound and add to overtonelistoflists
 
 def soundon(key): 
     for j in range(len(overtonelistoflists)):
-        overtonelistoflists[j][keys.index(str(key))].play(fade_ms=100)
-    soundlist[keys.index(str(key))].play(fade_ms=100)
+        overtonelistoflists[j][keys.index(str(key))].play(fade_ms=100) #play the list of overtones associated with that key
+    soundlist[keys.index(str(key))].play(fade_ms=100) #play the sound associated with that key
       
 def soundoff(key): 
     for j in range(len(overtonelistoflists)):
-        overtonelistoflists[j][keys.index(str(key))].fadeout(100)
-    soundlist[keys.index(str(key))].fadeout(100)
+        overtonelistoflists[j][keys.index(str(key))].fadeout(100) #turnoff the list of overtones associated with that key
+    soundlist[keys.index(str(key))].fadeout(100) #turn off the sound associated with that key
     
 def on_press(key):
-    global sustain
-    if (str(key) == "Key.space"):
-        sustain = True
-    elif(inuse[keys.index(str(key))]==False):
-        inuse[keys.index(str(key))] = True
-        soundon(key) 
+    global sustain #sustain is a global variable
+    if (str(key) == "Key.space"): #if the key = space
+        sustain = True #turn on sustain
+    elif(inuse[keys.index(str(key))]==False): #check if the key is not currently being played
+        inuse[keys.index(str(key))] = True #then it now is in use
+        soundon(key) #play it
     
 def on_release(key): 
-    global sustain
-    if (str(key) == "Key.space"):
-        sustain = False
-        for key in keys:
-            soundoff(key)
-    elif sustain == True:
-        print()
-    else:
-        soundoff(key)
-        inuse[keys.index(str(key))] = False
+    global sustain #global variable
+    if (str(key) == "Key.space"): #if key = space
+        sustain = False #turn off sustain
+        for key in keys: 
+            soundoff(key) #turn off all the keys
+    elif sustain == True: #if sustain is on
+        print() #do nothing
+    else: #if sustain is off
+        soundoff(key) #turn of the key
+        inuse[keys.index(str(key))] = False #mark that it is no longer in use
     
-with Listener(
+with Listener( #keyboard listener
         on_press=on_press,
         on_release=on_release) as listener:
     listener.join()
